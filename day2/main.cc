@@ -41,13 +41,28 @@ bool isVarianceAcceptable(const std::vector<int>& report) {
   return true;
 }
 
+bool isSafe(const std::vector<int>& report) {
+  const auto isMonotonic = std::ranges::is_sorted(report) ||
+                           std::ranges::is_sorted(report, std::greater<>());
+  return isMonotonic && isVarianceAcceptable(report);
+}
+
+bool isSafeWithDampener(const std::vector<int>& report) {
+  for (int i = 0; i < report.size(); ++i) {
+    auto copy = report;
+    copy.erase(copy.begin() + i);
+    if (isSafe(copy)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 int main() {
   const auto reports = parse("input");
   int safe = 0;
   for (const auto r : reports) {
-    const auto isMonotonic = std::ranges::is_sorted(r) ||
-                             std::ranges::is_sorted(r, std::greater<>());
-    if (isMonotonic && isVarianceAcceptable(r)) {
+    if (isSafeWithDampener(r)) {
       ++safe;
     }
   }
