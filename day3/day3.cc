@@ -1,13 +1,17 @@
+#include <algorithm>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
 #include <numeric>
 #include <ranges>
+#include <regex>
 #include <sstream>
+#include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
-void error(const std::string& what) {
+[[noreturn]] void error(const std::string& what) {
   std::cerr << what << '\n';
   std::exit(1);
 }
@@ -17,24 +21,16 @@ struct Mul {
   int y;
 };
 
-std::vector<Mul> parseLine(const std::string& s) {
-  std::vector<Mul> muls;
-  int pos = 0;
-  while ((pos = s.find("mul(", pos)) != s.npos) {
-    // Holy shit this is terrible
-    const auto start = pos + 4;
-    const auto after = s.substr(start);
-    std::istringstream ss{after};
-    int x, y;
-    char delim = 0, right = 0;
-    ss >> x >> delim >> y >> right;
-    if (delim == ',' && right == ')' && ss) {
-      muls.push_back({x, y});
-    }
-    ++pos;
+Mul parseMul(const std::string& s) {
+  const auto after = s.substr(4);
+  std::istringstream is{after};
+  char delim = 0, right = 0;
+  int x = 0, y = 0;
+  is >> x >> delim >> y >> right;
+  if (is && delim == ',' && right == ')') {
+    return {x, y};
   }
-
-  return muls;
+  error("Failed to parse a mul");
 }
 
 std::vector<Mul> parse() {
@@ -43,13 +39,29 @@ std::vector<Mul> parse() {
     error("Failed to open.");
   }
 
+  std::regex pattern{R"(don't\(\)|do\(\)|mul\(\d+,\d+\))"};
   std::vector<Mul> muls;
+  bool enabled = true;
   for (std::string l; std::getline(is, l);) {
-    for (const auto m : parseLine(l)) {
-      muls.push_back(m);
+    std::sregex_iterator it{l.begin(), l.end(), pattern};
+    std::sregex_iterator end;
+    while (it != end) {
+      auto token = it->str();
+      std::cout << token << '\n';
+      if (token.starts_with("mul")) {
+        if (enabled) {
+          muls.push_back(parseMul(token));
+        }
+      } else if (token == "don't()") {
+        enabled = false;
+      } else if (token == "do()") {
+        enabled = true;
+      } else {
+        error("Unknown token: " + token);
+      }
+      ++it;
     }
   }
-
   return muls;
 }
 
