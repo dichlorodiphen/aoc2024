@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cinttypes>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -51,16 +52,25 @@ parse() {
 
 using Graph = std::unordered_map<int, std::unordered_set<int>>;
 
-bool isValid(std::vector<int>& update, Graph& deps) {
+std::pair<bool, int> isValid(std::vector<int>& update, Graph& deps) {
   std::unordered_set<int> cannot_contain;
   for (int i = update.size() - 1; i >= 0; --i) {
     if (cannot_contain.contains(update[i])) {
-      return false;
+      return {false, i};
     }
     cannot_contain.insert_range(deps[update[i]]);
   }
 
-  return true;
+  return {true, 0};
+}
+
+std::vector<int> correct(std::vector<int>& update, Graph& deps) {
+  auto [is_valid, i] = isValid(update, deps);
+  if (!is_valid) {
+    std::swap(update[i], update[i + 1]);
+    return correct(update, deps);
+  }
+  return update;
 }
 
 int main() {
@@ -72,13 +82,15 @@ int main() {
   }
 
   int sum = 0;
-  for (auto& u : updates) {
-    if (isValid(u, deps)) {
-      sum += u[u.size() / 2];
-    }
+  auto incorrect = updates | std::views::filter([&deps](auto u) {
+                     return !isValid(u, deps).first;
+                   });
+  for (auto u : incorrect) {
+    auto corrected = correct(u, deps);
+    sum += corrected[corrected.size() / 2];
   }
 
-  std::cout << "Sum: " << sum;
+  std::cout << "Sum: " << sum << '\n';
 
   return 0;
 }
